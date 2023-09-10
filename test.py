@@ -7,6 +7,24 @@ import time
 import mediapipe as mp
 #NHỚ BẤM Q VÀO CHƯƠNG TRÌNH ĐỂ TẮT
 
+DATA_PATH = os.path.join('MP_Data')
+
+actions = np.array(['hello', 'thanks', 'iloveyou'])
+
+#30 video chứa data
+no_sequences = 30
+
+#video sẽ mang 30 frames
+sequence_length = 30
+
+#Tạo thư mục data tương ứng với actions
+for action in actions:
+    for sequence in range(no_sequences):
+        try:
+            os.makedirs(os.path.join(DATA_PATH,action,str(sequence)))
+        except:
+            pass
+
 #Holistic Model nhận diện đối tượng và drawing util vẽ ra các line tương ứng 
 mp_holistic = mp.solutions.holistic #Holistic model https://github.com/google/mediapipe/blob/master/docs/solutions/holistic.md
 mp_drawing = mp.solutions.drawing_utils # Drawing utilities
@@ -41,6 +59,14 @@ def draw_styled_landmarks(image,results):
     mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS,
                               mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=4),
                               mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)) #Vẽ các điểm tay phải
+    
+#Lấy ra các điểm nối https://www.youtube.com/watch?v=doDUihpj6ro&t=422s 40:00 có giải thích
+def extract_keypoints(results):
+    pose = np.array([[res.x,res.y,res.z,res.visibility] for res in results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(132)
+    face = np.array([[res.x,res.y,res.z] for res in results.face_landmarks.landmark]).flatten() if results.face_landmarks else np.zeros(1404)
+    lh = np.array([[res.x,res.y,res.z] for res in results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21*3)
+    rh = np.array([[res.x,res.y,res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
+    return np.concatenate([pose, face, lh, rh])
 
 # Show màn hình
 cap = cv2.VideoCapture(0)
@@ -64,3 +90,5 @@ with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence=
     cap.release()
     cv2.destroyAllWindows()
 #####
+
+
