@@ -68,27 +68,64 @@ def extract_keypoints(results):
     rh = np.array([[res.x,res.y,res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
     return np.concatenate([pose, face, lh, rh])
 
-# Show màn hình
-cap = cv2.VideoCapture(0)
-#Đặt mediapipe model https://www.youtube.com/watch?v=doDUihpj6ro&t=422s 21:00 có giải thích
-#có thể chỉnh hai thông số cho phù hợp
-with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence= 0.5) as holistic:
-    while cap.isOpened():
-        ret, frame = cap.read() #frame là hình ảnh lấy được từ camera
-        
-        #Bắt đầu nhận diện
-        image, results = mediapipe_detection(frame, holistic)
-        print(results)
-        
-        #Vẽ các đường nối
-        draw_styled_landmarks(image, results)
-        
-        cv2.imshow('OpenCV Feed', image)
-        # Tắt camera bằng nút q
-        if cv2.waitKey(10) & 0xFF == ord('q'):
-            break
-    cap.release()
-    cv2.destroyAllWindows()
-#####
 
+print("1.Collect Data")
+print("2.Mở camera")
+fun = input("Vui lòng chọn việc bạn muốn làm")
+if fun == "1":
+    #Collect Data qua camera (Quét từng frame lấy các điểm rồi lưu nó thành 1 numpy array)
+    cap = cv2.VideoCapture(0)
+    with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence= 0.5) as holistic:
+        for action in actions:
+            for sequence in range (no_sequences):
+                for frame_num in range(sequence_length):
+                    ret, frame = cap.read() #frame là hình ảnh lấy được từ camera
+                    #Bắt đầu nhận diện
+                    image, results = mediapipe_detection(frame, holistic)
+                    print(results)
+                    #Vẽ các đường nối
+                    draw_styled_landmarks(image, results)
+                    if frame_num == 0:
+                        cv2.putText(image, 'STARTING COLLECTION', (120,200),
+                                    cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),4,cv2.LINE_AA)
+                        cv2.putText(image, 'Collecting frames for {} video number {}'.format(action,sequence), (15,12),
+                                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255),4,cv2.LINE_AA)
+                        cv2.waitKey(2000)
+                    else:
+                        cv2.putText(image, 'Collecting frames for {} video number {}'.format(action,sequence), (15,12),
+                                    cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,255),4,cv2.LINE_AA)
+                    keypoints = extract_keypoints(results)
+                    cv2.imshow('OpenCV Feed', image)
+                    npy_path = os.path.join(DATA_PATH, action, str(sequence), str(frame_num))
+                    np.save(npy_path, keypoints)
+                    # Tắt camera bằng nút q
+                    if cv2.waitKey(10) & 0xFF == ord('q'):
+                        break
+        cap.release()
+        cv2.destroyAllWindows()
+    #####
+
+else:
+    # Show màn hình
+    cap = cv2.VideoCapture(0)
+    #Đặt mediapipe model https://www.youtube.com/watch?v=doDUihpj6ro&t=422s 21:00 có giải thích
+    #có thể chỉnh hai thông số cho phù hợp
+    with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence= 0.5) as holistic:
+        while cap.isOpened():
+            ret, frame = cap.read() #frame là hình ảnh lấy được từ camera
+            
+            #Bắt đầu nhận diện
+            image, results = mediapipe_detection(frame, holistic)
+            print(results)
+            
+            #Vẽ các đường nối
+            draw_styled_landmarks(image, results)
+            
+            cv2.imshow('OpenCV Feed', image)
+            # Tắt camera bằng nút q
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                break
+        cap.release()
+        cv2.destroyAllWindows()
+    #####
 
