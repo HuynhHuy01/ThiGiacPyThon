@@ -5,11 +5,13 @@ import os
 from matplotlib import pyplot as plt
 import time
 import mediapipe as mp
+from sklearn.model_selection import train_test_split
+from keras.utils import to_categorical
 #NHỚ BẤM Q VÀO CHƯƠNG TRÌNH ĐỂ TẮT
 
 DATA_PATH = os.path.join('MP_Data')
 
-actions = np.array(['hello', 'thanks', 'iloveyou'])
+actions = np.array(['A','B','C'])
 
 #30 video chứa data
 no_sequences = 30
@@ -24,6 +26,21 @@ for action in actions:
             os.makedirs(os.path.join(DATA_PATH,action,str(sequence)))
         except:
             pass
+        
+label_map = {label:num for num, label in enumerate(actions)}
+print(label_map)
+sequences, labels = [], []
+for action in actions:
+    for sequence in range(no_sequences):
+        window = []
+        for frame_num in range(sequence_length):
+            res = np.load(os.path.join(DATA_PATH, action, str(sequence), "{}.npy".format(frame_num)))
+            window.append(res)
+        sequences.append(window)
+        labels.append(label_map[action])
+X = np.array(sequences)
+y= to_categorical(labels).astype(int)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05)
 
 #Holistic Model nhận diện đối tượng và drawing util vẽ ra các line tương ứng 
 mp_holistic = mp.solutions.holistic #Holistic model https://github.com/google/mediapipe/blob/master/docs/solutions/holistic.md
@@ -108,6 +125,8 @@ if fun == "1":
 else:
     # Show màn hình
     cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
     #Đặt mediapipe model https://www.youtube.com/watch?v=doDUihpj6ro&t=422s 21:00 có giải thích
     #có thể chỉnh hai thông số cho phù hợp
     with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence= 0.5) as holistic:
