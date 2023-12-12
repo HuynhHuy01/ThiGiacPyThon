@@ -1,0 +1,1 @@
+actions = np.array(["father","hello","I","mother","see_you_later","what","again"])

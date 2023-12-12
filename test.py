@@ -8,20 +8,16 @@ import mediapipe as mp
 import pyautogui
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
-
+import tensorflow as tf
+print(tf.__version__)
 from keras.models import Sequential
 from keras.layers import LSTM,Dense
 from keras.callbacks import TensorBoard
 #NHỚ BẤM Q VÀO CHƯƠNG TRÌNH ĐỂ TẮT
 
 DATA_PATH = os.path.join('MP_Data')
-
 actions = np.array(["father","hello","I","mother","see_you_later","what","again"])
-
-#30 video chứa data
 no_sequences = 30
-
-#video sẽ mang 30 frames
 sequence_length = 30
 
 #Tạo thư mục data tương ứng với actions
@@ -116,44 +112,57 @@ if fun == "1":
 elif fun == "2":
     # Show màn hình
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
+    fps = 0
     #Đặt mediapipe model https://www.youtube.com/watch?v=doDUihpj6ro&t=422s 21:00 có giải thích
     #có thể chỉnh hai thông số cho phù hợp
     with mp_holistic.Holistic(min_detection_confidence= 0.5,min_tracking_confidence= 0.5) as holistic:
+        start_time = time.time()
+        frame_count = 0
         while cap.isOpened():
-            ret, frame = cap.read() #frame là hình ảnh lấy được từ camera
-            
-            #Bắt đầu nhận diện
+            ret, frame = cap.read()  # frame is the image captured from the camera
+
+                # Perform mediapipe detection
             image, results = mediapipe_detection(frame, holistic)
-            print(results)
-            
-            #Vẽ các đường nối
+
+                # Draw landmarks
             draw_styled_landmarks(image, results)
-            
+
+            # Calculate FPS
+            frame_count += 1
+            if time.time() - start_time >= 0.1:
+                fps = frame_count / (time.time() - start_time)
+                print("FPS:", round(fps, 2))
+
+                # Reset counters
+                frame_count = 0
+                start_time = time.time()
+
+            # Show the image with FPS
+            cv2.putText(image, f"FPS: {round(fps, 2)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow('OpenCV Feed', image)
-            # Tắt camera bằng nút q
+
+            # Quit camera with 'q' key
             if cv2.waitKey(10) & 0xFF == ord('q'):
                 break
         cap.release()
         cv2.destroyAllWindows()
     #####
 else:
-    # label_map = {label:num for num, label in enumerate(actions)}
-    # sequences, labels = [], []
-    # for action in actions:
-    #     for sequence in range(no_sequences):
-    #         window = []
-    #         for frame_num in range(sequence_length):
-    #             res = np.load(os.path.join(DATA_PATH, action, str(sequence), "{}.npy".format(frame_num)))
-    #             window.append(res)
-    #         sequences.append(window)
-    #         labels.append(label_map[action])
-    # X = np.array(sequences)
-    # y = to_categorical(labels).astype(int)
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-    # print(np.array(sequences).shape)
-    # print(y_test.shape)
+    label_map = {label:num for num, label in enumerate(actions)}
+    sequences, labels = [], []
+    for action in actions:
+        for sequence in range(no_sequences):
+            window = []
+            for frame_num in range(sequence_length):
+                res = np.load(os.path.join(DATA_PATH, action, str(sequence), "{}.npy".format(frame_num)))
+                window.append(res)
+            sequences.append(window)
+            labels.append(label_map[action])
+    X = np.array(sequences)
+    y = to_categorical(labels).astype(int)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+    print(np.array(sequences).shape)
+    print(y_test.shape)
 
 
 
@@ -172,9 +181,6 @@ else:
     model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
     # model.fit(X, y, epochs=100, callbacks=[tb_callback])
     # model.save('action2.keras')
-
-   
-    
     model.load_weights("action1.keras")
     # res = model.predict(X_test)
     # print(actions[np.argmax(res[0])])
@@ -230,17 +236,12 @@ else:
                         draw_styled_landmarks(image, results)
                         sequence.append(extract_keypoints(results))
                         if len(sequence) == 30:
-        # Predict the action for the sequence of frames
                             res = model.predict(np.expand_dims(sequence, axis=0))[0]
-                            
-                            # Check if the maximum prediction score is above the threshold
                             if res[np.argmax(res)] > threshold:
                                 predicted_action = actions[np.argmax(res)]
                                 print(predicted_action, res[np.argmax(res)])
                                 predicted_actions += " " + predicted_action
                                 holis = False
-                            
-                            # Reset the sequence for the next 30 frames
                             sequence = []
                         cv2.imshow('OpenCV Feed', image)
                     # Tắt camera bằng nút q
